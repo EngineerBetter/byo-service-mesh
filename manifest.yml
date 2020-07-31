@@ -1,0 +1,32 @@
+applications:
+- name: consul-server
+  buildpacks:
+  - binary_buildpack
+  health-check-type: http
+  health-check-http-endpoint: /ui/
+  command: >
+    ./consul agent -server -ui
+    -client 0.0.0.0 -http-port $PORT
+    -node consul-server-$CF_INSTANCE_INDEX
+    -data-dir /tmp/consul
+    -bootstrap-expect 3
+    -retry-join 0.consul-server.apps.internal
+    -retry-join 1.consul-server.apps.internal
+    -retry-join 2.consul-server.apps.internal
+  instances: 3
+  memory: 256M
+  routes:
+  - route: consul-server.apps.internal
+  - route: eb-consul.cfapps.io
+  env:
+    CONSUL_HTTP_ADDR: localhost:$PORT
+
+network-policies:
+- src: consul-server
+  dest: consul-server
+  ports: 8300-8302
+  protocol: tcp
+- src: consul-server
+  dest: consul-server
+  ports: 8301-8302
+  protocol: udp
