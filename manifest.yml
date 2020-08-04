@@ -9,7 +9,7 @@ applications:
     -client 0.0.0.0 -http-port $PORT
     -node consul-server-$CF_INSTANCE_GUID
     -data-dir /tmp/consul
-    -config-file enable-connect.hcl
+    -config-file consul.d/enable-connect.hcl
     -bootstrap-expect 3
     -retry-join 0.consul-server.apps.internal
     -retry-join 1.consul-server.apps.internal
@@ -40,7 +40,7 @@ applications:
       -node frontend-$CF_INSTANCE_GUID
       -data-dir /tmp/consul
       -join consul-server.apps.internal
-      -config-file frontend.json
+      -config-dir consul.d/frontend
       -enable-local-script-checks
   - name: consul-proxy
     process_types: [web]
@@ -65,7 +65,7 @@ applications:
       -node backend-$CF_INSTANCE_GUID
       -data-dir /tmp/consul
       -join consul-server.apps.internal
-      -config-file backend.json
+      -config-dir consul.d/backend
       -enable-local-script-checks
   - name: consul-proxy
     process_types: [web]
