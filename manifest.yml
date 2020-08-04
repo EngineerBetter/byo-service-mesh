@@ -4,11 +4,12 @@ applications:
   - binary_buildpack
   health-check-type: http
   health-check-http-endpoint: /ui/
-  command: >
+  command: >-
     ./consul agent -server -ui
     -client 0.0.0.0 -http-port $PORT
-    -node consul-server-$CF_INSTANCE_INDEX
+    -node consul-server-$CF_INSTANCE_GUID
     -data-dir /tmp/consul
+    -config-file enable-connect.hcl
     -bootstrap-expect 3
     -retry-join 0.consul-server.apps.internal
     -retry-join 1.consul-server.apps.internal
@@ -19,7 +20,7 @@ applications:
   - route: consul-server.apps.internal
   - route: eb-consul.cfapps.io
   env:
-    CONSUL_HTTP_ADDR: localhost:$PORT
+    CONSUL_HTTP_ADDR: localhost:8080
 
 network-policies:
 - src: consul-server
