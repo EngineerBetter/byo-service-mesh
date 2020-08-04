@@ -22,12 +22,52 @@ applications:
   env:
     CONSUL_HTTP_ADDR: localhost:8080
 
-network-policies:
-- src: consul-server
-  dest: consul-server
-  ports: 8300-8302
-  protocol: tcp
-- src: consul-server
-  dest: consul-server
-  ports: 8301-8302
-  protocol: udp
+- name: frontend
+  buildpacks:
+  - python_buildpack
+  memory: 128M
+  no-route: true
+  processes:
+  - type: web
+    command: python -m http.server $PORT
+    memory: 256M
+  sidecars:
+  - name: consul
+    process_types: [web]
+    memory: 32M
+    command: >-
+      ./consul agent
+      -node frontend-$CF_INSTANCE_GUID
+      -data-dir /tmp/consul
+      -join consul-server.apps.internal
+      -config-file frontend.json
+      -enable-local-script-checks
+  - name: consul-proxy
+    process_types: [web]
+    memory: 64M
+    command: sleep 10 && ./consul connect proxy -sidecar-for frontend
+
+- name: backend
+  buildpacks:
+  - python_buildpack
+  routes:
+  - route: eb-backend.apps.internal
+  processes:
+  - type: web
+    command: python -m http.server $PORT
+    memory: 256M
+  sidecars:
+  - name: consul
+    process_types: [web]
+    memory: 32M
+    command: >-
+      ./consul agent
+      -node backend-$CF_INSTANCE_GUID
+      -data-dir /tmp/consul
+      -join consul-server.apps.internal
+      -config-file backend.json
+      -enable-local-script-checks
+  - name: consul-proxy
+    process_types: [web]
+    memory: 64M
+    command: sleep 10 && ./consul connect proxy -sidecar-for backend
