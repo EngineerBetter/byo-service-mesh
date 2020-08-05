@@ -5,7 +5,7 @@ applications:
   health-check-type: http
   health-check-http-endpoint: /ui/
   command: >-
-    ./consul agent -server -ui
+    ./bin/consul agent -server -ui
     -client 0.0.0.0 -http-port $PORT
     -node consul-server-$CF_INSTANCE_GUID
     -data-dir /tmp/consul
@@ -36,8 +36,9 @@ applications:
     process_types: [web]
     memory: 32M
     command: >-
-      ./consul agent
+      ./bin/consul agent
       -node frontend-$CF_INSTANCE_GUID
+      -grpc-port 8502
       -data-dir /tmp/consul
       -join consul-server.apps.internal
       -config-dir consul.d/frontend
@@ -45,7 +46,7 @@ applications:
   - name: consul-proxy
     process_types: [web]
     memory: 64M
-    command: sleep 10 && ./consul connect proxy -sidecar-for frontend
+    command: sleep 10 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for frontend
 
 - name: backend
   buildpacks:
@@ -61,8 +62,9 @@ applications:
     process_types: [web]
     memory: 32M
     command: >-
-      ./consul agent
+      ./bin/consul agent
       -node backend-$CF_INSTANCE_GUID
+      -grpc-port 8502
       -data-dir /tmp/consul
       -join consul-server.apps.internal
       -config-dir consul.d/backend
@@ -70,4 +72,4 @@ applications:
   - name: consul-proxy
     process_types: [web]
     memory: 64M
-    command: sleep 10 && ./consul connect proxy -sidecar-for backend
+    command: sleep 10 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for backend
