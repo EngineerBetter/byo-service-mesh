@@ -1,0 +1,11 @@
+{
+  "service": {
+    "name": "hotrod-route",
+    "port": 8080,
+    "connect": {
+      "sidecar_service": {
+        "port": 8000
+      }
+    }
+  }
+}

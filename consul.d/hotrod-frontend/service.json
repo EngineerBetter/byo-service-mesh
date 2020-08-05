@@ -1,0 +1,26 @@
+{
+  "service": {
+    "name": "hotrod-frontend",
+    "port": 8080,
+    "connect": {
+      "sidecar_service": {
+        "proxy": {
+          "upstreams": [
+            {
+              "destination_name": "hotrod-customer",
+              "local_bind_port": 8081
+            },
+            {
+              "destination_name": "hotrod-driver",
+              "local_bind_port": 8082
+            },
+            {
+              "destination_name": "hotrod-route",
+              "local_bind_port": 8083
+            }
+          ]
+        }
+      }
+    }
+  }
+}

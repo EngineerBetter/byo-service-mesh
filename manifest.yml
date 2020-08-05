@@ -22,54 +22,51 @@ applications:
   env:
     CONSUL_HTTP_ADDR: localhost:8080
 
-- name: frontend
+- name: hotrod-frontend
   buildpacks:
-  - python_buildpack
-  memory: 128M
-  no-route: true
-  processes:
-  - type: web
-    command: python -m http.server $PORT
-    memory: 256M
-  sidecars:
-  - name: consul
-    process_types: [web]
-    memory: 32M
-    command: >-
-      ./bin/consul agent
-      -node frontend-$CF_INSTANCE_GUID
-      -grpc-port 8502
-      -data-dir /tmp/consul
-      -join consul-server.apps.internal
-      -config-dir consul.d/frontend
-      -enable-local-script-checks
-  - name: consul-proxy
-    process_types: [web]
-    memory: 64M
-    command: sleep 10 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for frontend
-
-- name: backend
-  buildpacks:
-  - python_buildpack
+  - binary_buildpack
+  memory: 256M
   routes:
-  - route: eb-backend.apps.internal
-  processes:
-  - type: web
-    command: python -m http.server $PORT
-    memory: 256M
-  sidecars:
+  - route: hotrod-frontend.cfapps.io
+  command: ./bin/hotrod frontend
+  sidecars: &sidecars
   - name: consul
     process_types: [web]
     memory: 32M
-    command: >-
+    command: &command >-
       ./bin/consul agent
-      -node backend-$CF_INSTANCE_GUID
+      -node $(echo "$VCAP_APPLICATION" | jq -r '.name')-$CF_INSTANCE_GUID
+      -hcl 'enable_central_service_config = true'
       -grpc-port 8502
       -data-dir /tmp/consul
       -join consul-server.apps.internal
-      -config-dir consul.d/backend
+      -config-dir consul.d/$(echo "$VCAP_APPLICATION" | jq -r '.name')
       -enable-local-script-checks
   - name: consul-proxy
     process_types: [web]
     memory: 64M
-    command: sleep 10 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for backend
+    command: sleep 5 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for $(echo "$VCAP_APPLICATION" | jq -r '.name')
+
+- name: hotrod-customer
+  buildpacks:
+  - binary_buildpack
+  memory: 256M
+  no-route: true
+  command: ./bin/hotrod customer --customer-service-port $PORT
+  sidecars: *sidecars
+
+- name: hotrod-driver
+  buildpacks:
+  - binary_buildpack
+  memory: 256M
+  no-route: true
+  command: ./bin/hotrod driver --driver-service-port $PORT
+  sidecars: *sidecars
+
+- name: hotrod-route
+  buildpacks:
+  - binary_buildpack
+  memory: 256M
+  no-route: true
+  command: ./bin/hotrod route --route-service-port $PORT
+  sidecars: *sidecars
