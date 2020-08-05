@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
 
-require 'yaml'
+require 'json'
 
-manifest = YAML.load(File.read("manifest.yml"))
+results = JSON.parse `cf curl "/v3/apps?label_selector=service-mesh=true"`
 
-apps = manifest['applications'].map do |app|
+apps = results['resources'].map do |app|
   app['name']
 end
+
 apps.each do |app|
   system "cf add-network-policy #{app} #{app} --port 8000-9000 --protocol tcp"
 end

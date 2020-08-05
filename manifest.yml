@@ -21,6 +21,9 @@ applications:
   - route: eb-consul.cfapps.io
   env:
     CONSUL_HTTP_ADDR: localhost:8080
+  metadata: &metadata
+    labels:
+      service-mesh: true
 
 - name: hotrod-frontend
   buildpacks:
@@ -46,6 +49,7 @@ applications:
     process_types: [web]
     memory: 64M
     command: sleep 5 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for $(echo "$VCAP_APPLICATION" | jq -r '.name')
+  metadata: *metadata
 
 - name: hotrod-customer
   buildpacks:
@@ -54,6 +58,7 @@ applications:
   no-route: true
   command: ./bin/hotrod customer --customer-service-port $PORT
   sidecars: *sidecars
+  metadata: *metadata
 
 - name: hotrod-driver
   buildpacks:
@@ -62,6 +67,7 @@ applications:
   no-route: true
   command: ./bin/hotrod driver --driver-service-port $PORT
   sidecars: *sidecars
+  metadata: *metadata
 
 - name: hotrod-route
   buildpacks:
@@ -70,3 +76,4 @@ applications:
   no-route: true
   command: ./bin/hotrod route --route-service-port $PORT
   sidecars: *sidecars
+  metadata: *metadata
