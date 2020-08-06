@@ -9,7 +9,7 @@ applications:
     -client 0.0.0.0 -http-port $PORT
     -node consul-server-$CF_INSTANCE_GUID
     -data-dir /tmp/consul
-    -config-file consul.d/enable-connect.hcl
+    -config-file consul.d/server.hcl
     -bootstrap-expect 3
     -retry-join 0.consul-server.apps.internal
     -retry-join 1.consul-server.apps.internal
@@ -18,7 +18,8 @@ applications:
   memory: 256M
   routes:
   - route: consul-server.apps.internal
-  - route: eb-consul.cfapps.io
+# Public route to UI
+# - route: consul.your.domain
   env:
     CONSUL_HTTP_ADDR: localhost:8080
   metadata: &metadata
@@ -29,11 +30,12 @@ applications:
   buildpacks:
   - binary_buildpack
   memory: 256M
-  routes:
-  - route: hotrod-frontend.cfapps.io
+# Public routes to example app frontend
+# routes:
+# - route: hotrod-frontend.your.domain
   command: ./bin/hotrod frontend
   sidecars: &sidecars
-  - name: consul
+  - name: consul-agent
     process_types: [web]
     memory: 32M
     command: &command >-
@@ -48,6 +50,7 @@ applications:
   - name: consul-proxy
     process_types: [web]
     memory: 64M
+    # There can be a race condition with the Consul agent not being up yet so sleep for 5
     command: sleep 5 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for $(echo "$VCAP_APPLICATION" | jq -r '.name')
   metadata: *metadata
 
