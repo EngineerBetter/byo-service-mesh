@@ -1,82 +1,42 @@
 applications:
 - name: consul-server
-  buildpacks:
-  - binary_buildpack
+  buildpacks: [ binary_buildpack ]
   health-check-type: http
   health-check-http-endpoint: /ui/
-  command: >-
-    ./bin/consul agent -server -ui
-    -client 0.0.0.0 -http-port $PORT
-    -node consul-server-$CF_INSTANCE_GUID
-    -data-dir /tmp/consul
-    -config-file consul.d/server.hcl
-    -bootstrap-expect 3
-    -retry-join 0.consul-server.apps.internal
-    -retry-join 1.consul-server.apps.internal
-    -retry-join 2.consul-server.apps.internal
+  command: ./bin/consul agent -server -ui -client 0.0.0.0 -http-port $PORT -node consul-server-$CF_INSTANCE_GUID -data-dir /tmp/consul -config-file consul.d/server.hcl -bootstrap-expect 3 -retry-join 0.consul-server.apps.internal -retry-join 1.consul-server.apps.internal -retry-join 2.consul-server.apps.internal
   instances: 3
   memory: 256M
-  routes:
-  - route: consul-server.apps.internal
-# Public route to UI
-# - route: consul.your.domain
-  env:
-    CONSUL_HTTP_ADDR: localhost:8080
+  routes: [ route: consul-server.apps.internal ]
   metadata: &metadata
-    labels:
-      service-mesh: true
+    labels: { service-mesh: true }
 
 - name: hotrod-frontend
-  buildpacks:
-  - binary_buildpack
-  memory: 256M
-# Public routes to example app frontend
-# routes:
-# - route: hotrod-frontend.your.domain
+  routes: [ hotrod-frontend.your.domain ]
   command: ./bin/hotrod frontend
-  sidecars: &sidecars
-  - name: consul-agent
-    process_types: [web]
-    memory: 32M
-    command: &command >-
-      ./bin/consul agent
-      -node $(echo "$VCAP_APPLICATION" | jq -r '.name')-$CF_INSTANCE_GUID
-      -hcl 'enable_central_service_config = true'
-      -grpc-port 8502
-      -data-dir /tmp/consul
-      -join consul-server.apps.internal
-      -config-dir consul.d/$(echo "$VCAP_APPLICATION" | jq -r '.name')
-      -enable-local-script-checks
-  - name: consul-proxy
-    process_types: [web]
-    memory: 64M
-    # There can be a race condition with the Consul agent not being up yet so sleep for 5
-    command: sleep 5 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for $(echo "$VCAP_APPLICATION" | jq -r '.name')
-  metadata: *metadata
+  <<: &hotrod-app
+    buildpacks: [ binary_buildpack ]
+    memory: 256M
+    command: ./bin/hotrod frontend
+    sidecars: &sidecars
+    - name: consul-agent
+      process_types: [web]
+      memory: 32M
+      command: ./bin/consul agent -node $(echo "$VCAP_APPLICATION" | jq -r '.name')-$CF_INSTANCE_GUID -hcl 'enable_central_service_config = true' -grpc-port 8502 -data-dir /tmp/consul -join consul-server.apps.internal -config-dir consul.d/$(echo "$VCAP_APPLICATION" | jq -r '.name') -enable-local-script-checks
+    - name: consul-proxy
+      process_types: [web]
+      memory: 64M
+      command: sleep 5 && ./bin/consul connect envoy -envoy-binary bin/envoy -envoy-version 1.14.2 -sidecar-for $(echo "$VCAP_APPLICATION" | jq -r '.name')
+    metadata: *metadata
 
-- name: hotrod-customer
-  buildpacks:
-  - binary_buildpack
-  memory: 256M
-  no-route: true
+- <<: *hotrod-app
+  name: hotrod-customer
   command: ./bin/hotrod customer --customer-service-port $PORT
-  sidecars: *sidecars
-  metadata: *metadata
-
-- name: hotrod-driver
-  buildpacks:
-  - binary_buildpack
-  memory: 256M
   no-route: true
+- <<: *hotrod-app
+  name: hotrod-driver
   command: ./bin/hotrod driver --driver-service-port $PORT
-  sidecars: *sidecars
-  metadata: *metadata
-
-- name: hotrod-route
-  buildpacks:
-  - binary_buildpack
-  memory: 256M
   no-route: true
+- <<: *hotrod-app
+  name: hotrod-route
   command: ./bin/hotrod route --route-service-port $PORT
-  sidecars: *sidecars
-  metadata: *metadata
+  no-route: true
